@@ -3,6 +3,7 @@ from sqlalchemy import or_
 from library import db
 from library.Common.Req.BorrowTicketReq import CreateBorrowTicketReq, UpdateBorrowTicketReq, DeleteBorrowTicketReq, \
     SearchBorrowTicketReq, FinishBorrowTicketReq
+from library.Common.Rsp.SingleRsp import ErrorRsp
 from library.DAL import models
 from flask import jsonify, json
 from library.Common.util import ConvertModelListToDictList
@@ -20,14 +21,31 @@ def GetBorrowTicketsByPage(req: GetItemsByPageReq):
 
 
 def CreateBorrowTicket(req: CreateBorrowTicketReq):
+
     create_borrow_ticket = models.Borrowtickets(customer_id=req.customer_id,
                                                 employee_id=req.employee_id,
                                                 quantity=len(req.borrow_book_ids),
                                                 borrow_date=datetime.now(),
                                                 appointment_date=datetime.now() + timedelta(days=14),
-                                                delete_at=req.delete_at,
-                                                note=req.note)
+                                                note=req.note
+                                                )
+    db.session.begin_nested()
     db.session.add(create_borrow_ticket)
+    db.session.commit()
+    count = 0
+    for borrow_ticket_detail in req.borrow_book_ids:
+        borrow_book = models.Books.query.get(borrow_ticket_detail)
+        count += 1
+        if borrow_book and count <= 3:
+            models.Books.old_amount -= 1
+            new_borrow_ticket_detail = models.Borrowticketdetails(book_id=borrow_ticket_detail,
+                                                                  borrow_ticket_id=create_borrow_ticket.serialize()[
+                                                                      'borrow_ticket_id'])
+            create_borrow_ticket.borrow_ticket_detail.append(new_borrow_ticket_detail)
+        else:
+            db.session.rollback()
+            raise ErrorRsp(code=400, message='nd', msg='sss')
+
     db.session.commit()
     return create_borrow_ticket.serialize()
 

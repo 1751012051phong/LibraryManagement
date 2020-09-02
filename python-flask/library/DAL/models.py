@@ -5,7 +5,7 @@ from library.Common.util import ConvertModelListToDictList
 class Accounts(db.Model):
     account_id = db.Column(db.Integer, primary_key=True, nullable=False, autoincrement=True, unique=True)
     role_id = db.Column(db.Integer, db.ForeignKey('roles.role_id'))
-    account_name = db.Column(db.String(50), nullable=False , unique=True)
+    account_name = db.Column(db.String(50), nullable=False, unique=True)
     account_password = db.Column(db.String(50), nullable=False)
     note = db.Column(db.String(50))
     delete_at = db.Column(db.DateTime, default=None)
@@ -38,7 +38,7 @@ class Books(db.Model):
     ranking = db.Column(db.String(50))
     delete_at = db.Column(db.DateTime, default=None)
     note = db.Column(db.String(1500))
-    orderdetails = db.relationship('Orderdetails', backref="book", lazy=True)
+    borrow_ticket_details = db.relationship('Borrowticketdetails', backref='book', lazy=True)
     stocktaketicketdetails = db.relationship('Stocktaketicketdetails', backref="book", lazy=True)
 
     def serialize(self):
@@ -56,11 +56,16 @@ class Books(db.Model):
                f"'description ':{self.description},'cost_price': {self.cost_price},'retail_price': {self.retail_price},'discount': {self.discount},'ranking': {self.ranking})"
 
 
-Borrowticketsdetails = db.Table('borrow_ticket_details',
-                                db.Column('book_id', db.Integer, db.ForeignKey('books.book_id'), primary_key=True),
-                                db.Column('borrow_ticket_id', db.Integer,
-                                          db.ForeignKey('borrowtickets.borrow_ticket_id'), primary_key=True)
-                                )
+class Borrowticketdetails(db.Model):
+    borrow_ticket_id = db.Column(db.Integer, db.ForeignKey('borrowtickets.borrow_ticket_id'), primary_key=True)
+    book_id = db.Column(db.Integer, db.ForeignKey('books.book_id'), primary_key=True)
+    delete_at = db.Column(db.DateTime, default=None)
+
+    def serialize(self):
+        return {"borrow_ticket_id": self.borrow_ticket_id, "book_id": self.book_id, "delete_at": self.delete_at}
+
+    def __repr__(self):
+        return f"('book_id':{self.book_id}, 'borrow_ticket_id': {self.borrow_ticket_id})"
 
 
 class Borrowtickets(db.Model):
@@ -74,13 +79,13 @@ class Borrowtickets(db.Model):
     status = db.Column(db.Boolean)
     delete_at = db.Column(db.DateTime, default=None)
     note = db.Column(db.String(1500))
-    books = db.relationship('Books', secondary='borrow_ticket_details', lazy='subquery',
-                            backref=db.backref('borrowticket', lazy=False))
+    borrow_ticket_detail = db.relationship('Borrowticketdetails', backref='borrowticket', lazy=True)
+
     def serialize(self):
         return {"borrow_ticket_id": self.borrow_ticket_id, "customer": self.customer.serialize(), "note": self.note,
                 "employee": self.employee.serialize(), "quantity": self.quantity, "borrow_date": self.borrow_date,
                 "appointment_date": self.appointment_date, "return_date": self.return_date, "status": self.status,
-                "delete_at": self.delete_at, "borrow_books": ConvertModelListToDictList(self.books)}
+                "delete_at": self.delete_at, "borrow_ticket_detail": ConvertModelListToDictList(self.borrow_ticket_detail)}
 
     def __repr__(self):
         return f"Borrowticket('{self.borrow_ticket_id}','{self.customer.serialize()}','{self.note}','{self.employee.serialize()}'," \

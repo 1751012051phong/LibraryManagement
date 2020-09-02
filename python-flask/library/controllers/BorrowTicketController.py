@@ -23,8 +23,11 @@ def GetBorrowTickets():
 @app.route('/admin/borrow-ticket-management/create-borrow-ticket', methods=['POST', 'GET'])
 def CreateBorrowTicket():
     req = CreateBorrowTicketReq(request.json)
-    result = BorrowTicketSvc.CreateBorrowTicket(req)
-    return jsonify(result)
+    try:
+        result = BorrowTicketSvc.CreateBorrowTicket(req)
+        return jsonify(result)
+    except ErrorRsp as e:
+        return json.dumps(e.__dict__, ensure_ascii=False).encode('utf-8'), 401
 
 
 @app.route('/admin/borrow-ticket-management/update-borrow-ticket', methods=['POST', 'GET'])
